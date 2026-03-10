@@ -1,0 +1,52 @@
+flowchart TB
+    subgraph CLIENTS["👥 Multiple Users"]
+        U1["User 1: 'Explain K8s'"]
+        U2["User 2: 'What is Docker?'"]
+        U3["User 3: 'Redis vs Memcached?'"]
+    end
+
+    subgraph SERVER["⚡ FastAPI Server :8000"]
+        POST_CHAT["POST /chat\nAccepts query\nReturns Job ID"]
+        GET_RESULT["GET /result/job_id\nFetches result from Redis"]
+    end
+
+    subgraph QUEUE_SYSTEM["📬 Redis Queue RQ"]
+        VALKEY["Valkey/Redis :6379"]
+        QUEUE["FIFO Queue\nJob1 → Job2 → Job3"]
+    end
+
+    subgraph WORKER["⚙️ RQ Worker - Consumer"]
+        PICK["Pick next job from queue"]
+        PROCESS["process_query function"]
+        EMBED["Generate embeddings via OpenAI"]
+        SEARCH["Search vector DB via Qdrant :6333"]
+        CONTEXT["Prepare context from chunks"]
+        LLM["Call OpenAI GPT for final answer"]
+        STORE["Store result in Redis"]
+    end
+
+    subgraph STORAGE["💾 Storage Layer"]
+        QDRANT["Qdrant Vector DB\n:6333"]
+        REDIS_STORE["Redis/Valkey\nResult Store"]
+    end
+
+    U1 --> POST_CHAT
+    U2 --> POST_CHAT
+    U3 --> POST_CHAT
+    POST_CHAT -->|"enqueue job"| QUEUE
+    QUEUE --> PICK
+    PICK --> PROCESS
+    PROCESS --> EMBED
+    EMBED --> SEARCH
+    SEARCH --> CONTEXT
+    CONTEXT --> LLM
+    LLM --> STORE
+    SEARCH <--> QDRANT
+    STORE --> REDIS_STORE
+    GET_RESULT <-->|"read result"| REDIS_STORE
+
+    style CLIENTS fill:#2d2d2d,stroke:#00ff7f,color:#fff
+    style SERVER fill:#1a1a2e,stroke:#00ff7f,color:#fff
+    style QUEUE_SYSTEM fill:#16213e,stroke:#e94560,color:#fff
+    style WORKER fill:#0f3460,stroke:#39ff14,color:#fff
+    style STORAGE fill:#1a1a2e,stroke:#00ff7f,color:#fff
