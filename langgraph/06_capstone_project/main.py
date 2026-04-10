@@ -41,9 +41,10 @@ def main():
     config1 = {"configurable": {"thread_id": "demo-1"}}
 
     result1 = app.invoke({
-        "question": "Hi, how are you?",
+        "question": "Hello!",  # Bug 2 fix: no search keywords → routes directly to respond
         "search_results": [],
         "search_count": 0,
+        "search_query": "",
         "analysis": "",
         "has_enough_info": False,
         "draft_response": "",
@@ -68,6 +69,7 @@ def main():
         "question": "What is LangGraph and how does it work?",
         "search_results": [],
         "search_count": 0,
+        "search_query": "",
         "analysis": "",
         "has_enough_info": False,
         "draft_response": "",
@@ -96,6 +98,7 @@ def main():
         "question": "Explain the ReAct pattern in AI",
         "search_results": [],
         "search_count": 0,
+        "search_query": "",
         "analysis": "",
         "has_enough_info": False,
         "draft_response": "",

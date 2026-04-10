@@ -41,7 +41,8 @@ def intake_node(state):
 
 def search_node(state):
     """Execute a web search for the user's question."""
-    query = state["question"]
+    # Bug 4 fix: use refined query on subsequent searches
+    query = state.get("search_query") or state["question"]
     count = state["search_count"]
     print(f"\n  🔍 SEARCH #{count + 1}: Searching for '{query}'")
 
@@ -62,19 +63,25 @@ def analyze_node(state):
     print(f"\n  🧠 ANALYZE: Reviewing {len(results)} search result(s)")
 
     if USE_MOCK:
-        # Mock analysis
-        has_enough = count >= 1  # One search is enough for mock
-        analysis = f"[Mock analysis] Found {len(results)} results. {'Sufficient' if has_enough else 'Need more'}."
+        # Bug 3 fix: treat generic fallback result as insufficient
+        generic = "General information found"
+        has_enough = count >= 2 or not any(generic in str(r) for r in results)
+        analysis = f"[Mock analysis] Found {len(results)} results. {'Sufficient' if has_enough else 'Need more — refining query'}."
     else:
         from langchain_core.messages import HumanMessage
         analysis_prompt = (
             f"Analyze these search results for the question: '{state['question']}'\n"
             f"Results: {results}\n"
-            f"Do you have enough information to answer? Respond with your analysis."
+            f"Do you have enough information to answer comprehensively? "
+            f"Start your response with YES or NO."
         )
         response = llm.invoke([HumanMessage(content=analysis_prompt)])
         analysis = response.content
-        has_enough = count >= 1
+        # Bug 3 fix: parse LLM's answer instead of hardcoding
+        has_enough = count >= 2 or analysis.strip().upper().startswith("YES")
+
+    # Bug 4 fix: generate a refined query for the next search if needed
+    refined_query = f"{state['question']} in depth" if not has_enough else state["question"]
 
     print(f"     Analysis: {analysis[:80]}...")
     print(f"     Enough info: {has_enough}")
@@ -82,6 +89,7 @@ def analyze_node(state):
     return {
         "analysis": analysis,
         "has_enough_info": has_enough,
+        "search_query": refined_query,
         "status": "analyzed",
     }
 
@@ -129,9 +137,18 @@ def finalize_node(state):
     print(f"\n  ✅ FINALIZE: Publishing response")
 
     if feedback:
-        final = f"{draft}\n\n[Revised based on feedback: {feedback}]"
-        # to fix the draft base on feed
-        llm.invoke
+        # Bug 1 fix: actually revise the draft using the LLM (or mock gracefully)
+        if USE_MOCK:
+            final = f"{draft}\n\n[Revised based on feedback: {feedback}]"
+        else:
+            from langchain_core.messages import HumanMessage
+            revision_prompt = (
+                f"Original response:\n{draft}\n\n"
+                f"Human feedback: {feedback}\n\n"
+                f"Revise the response incorporating the feedback."
+            )
+            response = llm.invoke([HumanMessage(content=revision_prompt)])
+            final = response.content
     else:
         final = draft
 

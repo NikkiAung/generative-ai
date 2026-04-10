@@ -37,5 +37,8 @@ class ResearchState(TypedDict):
     # The final published response
     final_response: str
 
+    # Refined query for subsequent searches (Bug 4 fix)
+    search_query: str
+
     # Current status for routing
     status: str
